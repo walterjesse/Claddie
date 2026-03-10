@@ -688,15 +688,39 @@ export function App() {
   const [page, setPage] = useState<Page>(getPageFromLocation());
 
   // demo Supabase call: logs first few products (requires tables to exist)
+  // also performs one‑time migration from localStorage if the table is empty
   useEffect(() => {
-    supabase
-      .from("products")
-      .select("*")
-      .limit(5)
-      .then(({ data, error }) => {
-        if (error) console.error("Supabase fetch error", error);
-        else console.log("sample products from Supabase:", data);
-      });
+    async function init() {
+      const { data, error, count } = await supabase
+        .from("products")
+        .select("*", { count: "exact" })
+        .limit(5);
+
+      if (error) {
+        console.error("Supabase fetch error", error);
+      } else {
+        console.log("sample products from Supabase:", data);
+      }
+
+      // if there are no products in the database but we have defaults in
+      // localStorage, insert them once and clear the storage so we don't
+      // duplicate on next launch.
+      if ((count || 0) === 0) {
+        const stored: Product[] = readStorage(PRODUCT_KEY, DEFAULT_PRODUCTS);
+        if (stored.length > 0) {
+          console.log("migrating products to Supabase", stored.length);
+          const { error: insertError } = await supabase
+            .from("products")
+            .upsert(stored);
+          if (insertError) console.error("migration insert error", insertError);
+          else {
+            // remove from localStorage to avoid re-migration
+            writeStorage(PRODUCT_KEY, []);
+          }
+        }
+      }
+    }
+    init();
   }, []);
   const [products, setProducts] = useState<Product[]>(() => readStorage(PRODUCT_KEY, DEFAULT_PRODUCTS));
   const [orders, setOrders] = useState<Order[]>(() => readStorage(ORDER_KEY, []));
