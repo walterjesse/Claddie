@@ -3,6 +3,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, DragEvent, FormEvent, ReactNode } from "react";
 
+// supabase client initialized from environment variables
+import { supabase } from "./lib/supabase";
+
 type Page = "home" | "shop" | "admin";
 type AdminStage = "quiz" | "password" | "dashboard";
 type AdminTab = "inventory" | "orders" | "messages" | "accounts" | "settings";
@@ -683,6 +686,18 @@ function InvoicePanel({
 
 export function App() {
   const [page, setPage] = useState<Page>(getPageFromLocation());
+
+  // demo Supabase call: logs first few products (requires tables to exist)
+  useEffect(() => {
+    supabase
+      .from("products")
+      .select("*")
+      .limit(5)
+      .then(({ data, error }) => {
+        if (error) console.error("Supabase fetch error", error);
+        else console.log("sample products from Supabase:", data);
+      });
+  }, []);
   const [products, setProducts] = useState<Product[]>(() => readStorage(PRODUCT_KEY, DEFAULT_PRODUCTS));
   const [orders, setOrders] = useState<Order[]>(() => readStorage(ORDER_KEY, []));
   const [invoices, setInvoices] = useState<Invoice[]>(() => readStorage(INVOICE_KEY, []));

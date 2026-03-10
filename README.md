@@ -24,6 +24,31 @@ This project uses a single-file Vite build, so the production output is compact 
 - If you use EmailJS for password recovery, enter your EmailJS credentials in the admin settings before going live.
 - Browser storage is used for app data unless you connect your own shared backend.
 
+## Supabase integration
+
+If you'd like to store shop data in a shared database instead of browser
+storage, the project is already set up to use Supabase.  
+1. Create a `.env` file in the project root with the following variables:
+   ```env
+   VITE_SUPABASE_URL=https://eyaucwnbtagjlgdrstnm.supabase.co
+   VITE_SUPABASE_KEY=sb_publishable_LO4ioPtLY_3cyGi9DdEJew_aCZqxHD6
+   ```
+   (the direct Postgres connection string is shown below for reference, but
+   it should **never** be committed.)
+2. Restart the dev server so Vite can pick up the new variables.
+3. You can now access the Supabase client from `src/lib/supabase.ts` and
+   query tables such as `products`, `orders`, etc.  Example code is added in
+   `src/App.tsx`.
+
+The database password is `{Ruaraka_2026}` and the connection string is:
+
+```
+postgresql://postgres:Ruaraka_2026@db.eyaucwnbtagjlgdrstnm.supabase.co:5432/postgres
+```
+
+Make sure the `.env` file remains private.  On GitHub Pages deployment the
+workflow builds the site and does **not** publish this file.
+
 ## Admin access
 
 - Admin quiz question: `Is it you..?`
