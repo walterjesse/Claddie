@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # set supabase keys from repository secrets so the build can access them
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3

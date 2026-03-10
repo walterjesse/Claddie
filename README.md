@@ -49,6 +49,10 @@ postgresql://postgres:Ruaraka_2026@db.eyaucwnbtagjlgdrstnm.supabase.co:5432/post
 Make sure the `.env` file remains private.  On GitHub Pages deployment the
 workflow builds the site and does **not** publish this file.
 
+You’ll also want to supply the same values as **GitHub Actions secrets** so
+the site can access Supabase in production.  In the repository settings add
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` under **Secrets → Actions**.
+
 ### Initial database setup
 
 Before the app can read or write data, create the necessary tables using one
