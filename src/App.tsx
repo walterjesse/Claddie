@@ -691,20 +691,23 @@ export function App() {
   // also performs one‑time migration from localStorage if the table is empty
   useEffect(() => {
     async function init() {
-      const { data, error, count } = await supabase
+      // count to use for migration check
+      const {
+        data: sample,
+        error: sampleError,
+        count,
+      } = await supabase
         .from("products")
         .select("*", { count: "exact" })
         .limit(5);
 
-      if (error) {
-        console.error("Supabase fetch error", error);
+      if (sampleError) {
+        console.error("Supabase fetch error", sampleError);
       } else {
-        console.log("sample products from Supabase:", data);
+        console.log("sample products from Supabase:", sample);
       }
 
-      // if there are no products in the database but we have defaults in
-      // localStorage, insert them once and clear the storage so we don't
-      // duplicate on next launch.
+      // migration blocks (unchanged)
       if ((count || 0) === 0) {
         const stored: Product[] = readStorage(PRODUCT_KEY, DEFAULT_PRODUCTS);
         if (stored.length > 0) {
@@ -714,50 +717,72 @@ export function App() {
             .upsert(stored);
           if (insertError) console.error("migration insert error", insertError);
           else {
-            // remove from localStorage to avoid re-migration
             writeStorage(PRODUCT_KEY, []);
           }
         }
       }
 
-      // similarly migrate other tables if empty
       async function migrateTable<T>(
         table: string,
         key: string,
         fallback: T,
         clearStorage = true
       ) {
-        const { count: c } = await supabase.from(table).select("id", { count: "exact" }).limit(1);
+        const { count: c } = await supabase
+          .from(table)
+          .select("id", { count: "exact" })
+          .limit(1);
         if ((c || 0) === 0) {
           const items: any = readStorage<T[]>(key, fallback as any);
           if (Array.isArray(items) && items.length > 0) {
             console.log(`migrating ${table} to Supabase`, items.length);
             const { error } = await supabase.from(table).upsert(items);
-            if (error) console.error(`migration insert error for ${table}`, error);
+            if (error)
+              console.error(`migration insert error for ${table}`, error);
             else if (clearStorage) writeStorage(key, []);
           }
         }
       }
-
-      // call migration helper for other resources
       await migrateTable("orders", ORDER_KEY, []);
       await migrateTable("invoices", INVOICE_KEY, []);
       await migrateTable("users", USER_KEY, []);
-      // settings stored as object, migrate into 'settings' table as key/value pairs
       {
-        const { count: sc } = await supabase.from("settings").select("key", { count: "exact" }).limit(1);
+        const { count: sc } = await supabase
+          .from("settings")
+          .select("key", { count: "exact" })
+          .limit(1);
         if ((sc || 0) === 0) {
-          const storedSettings = readStorage<Settings>(SETTINGS_KEY, DEFAULT_SETTINGS);
-          const rows = Object.entries(storedSettings).map(([k, v]) => ({ key: k, value: v }));
+          const storedSettings = readStorage<Settings>(
+            SETTINGS_KEY,
+            DEFAULT_SETTINGS
+          );
+          const rows = Object.entries(storedSettings).map(([k, v]) => ({
+            key: k,
+            value: v,
+          }));
           if (rows.length > 0) {
             console.log("migrating settings to Supabase", rows.length);
             const { error } = await supabase.from("settings").insert(rows);
-            if (error) console.error("migration insert error for settings", error);
+            if (error)
+              console.error("migration insert error for settings", error);
             else writeStorage(SETTINGS_KEY, {});
           }
         }
       }
       await migrateTable("messages", MESSAGE_KEY, []);
+
+      // fetch all products after migration and sync local state
+      const { data: allProducts, error: fetchError } = await supabase
+        .from("products")
+        .select("*")
+        .order("createdat", { ascending: false });
+      if (fetchError) {
+        console.error("failed to load products from Supabase", fetchError);
+      } else if (allProducts) {
+        setProducts(allProducts as Product[]);
+        // keep localStorage in sync
+        writeStorage(PRODUCT_KEY, allProducts);
+      }
     }
     init();
   }, []);
@@ -1167,6 +1192,21 @@ export function App() {
       if (editingProductId) return current.map((item) => (item.id === editingProductId ? product : item));
       return [product, ...current];
     });
+
+    // persist to Supabase; ignore errors but log them
+    supabase
+      .from("products")
+      .upsert(product)
+      .then(({ error }) => {
+        if (error) console.error("Supabase save product error", error);
+      });
+
+    // also keep browser storage up to date
+    const updated = editingProductId
+      ? products.map((p) => (p.id === editingProductId ? product : p))
+      : [product, ...products];
+    writeStorage(PRODUCT_KEY, updated);
+
     resetProductForm();
   }
 
