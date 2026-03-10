@@ -719,6 +719,45 @@ export function App() {
           }
         }
       }
+
+      // similarly migrate other tables if empty
+      async function migrateTable<T>(
+        table: string,
+        key: string,
+        fallback: T,
+        clearStorage = true
+      ) {
+        const { count: c } = await supabase.from(table).select("id", { count: "exact" }).limit(1);
+        if ((c || 0) === 0) {
+          const items: any = readStorage<T[]>(key, fallback as any);
+          if (Array.isArray(items) && items.length > 0) {
+            console.log(`migrating ${table} to Supabase`, items.length);
+            const { error } = await supabase.from(table).upsert(items);
+            if (error) console.error(`migration insert error for ${table}`, error);
+            else if (clearStorage) writeStorage(key, []);
+          }
+        }
+      }
+
+      // call migration helper for other resources
+      await migrateTable("orders", ORDER_KEY, []);
+      await migrateTable("invoices", INVOICE_KEY, []);
+      await migrateTable("users", USER_KEY, []);
+      // settings stored as object, migrate into 'settings' table as key/value pairs
+      {
+        const { count: sc } = await supabase.from("settings").select("key", { count: "exact" }).limit(1);
+        if ((sc || 0) === 0) {
+          const storedSettings = readStorage<Settings>(SETTINGS_KEY, DEFAULT_SETTINGS);
+          const rows = Object.entries(storedSettings).map(([k, v]) => ({ key: k, value: v }));
+          if (rows.length > 0) {
+            console.log("migrating settings to Supabase", rows.length);
+            const { error } = await supabase.from("settings").insert(rows);
+            if (error) console.error("migration insert error for settings", error);
+            else writeStorage(SETTINGS_KEY, {});
+          }
+        }
+      }
+      await migrateTable("messages", MESSAGE_KEY, []);
     }
     init();
   }, []);
