@@ -49,6 +49,28 @@ postgresql://postgres:Ruaraka_2026@db.eyaucwnbtagjlgdrstnm.supabase.co:5432/post
 Make sure the `.env` file remains private.  On GitHub Pages deployment the
 workflow builds the site and does **not** publish this file.
 
+### Initial database setup
+
+Before the app can read or write data, create the necessary tables using one
+of the following methods:
+
+1. **Supabase SQL editor**
+   - Open your project at
+     `https://app.supabase.com/project/eyaucwnbtagjlgdrstnm`.
+   - Go to **SQL → New query**.
+   - Paste the contents of `db/schema.sql` and run the script.
+
+2. **Postgres CLI (`psql`) or other client**
+   ```bash
+   psql "postgresql://postgres:Ruaraka_2026@db.eyaucwnbtagjlgdrstnm.supabase.co:5432/postgres" \
+     -f db/schema.sql
+   ```
+
+The migration logic in `src/App.tsx` will automatically populate these tables
+with any data that currently lives in browser storage when you next start the
+dev server.  After the migration runs, the localStorage keys are cleared so
+the process only occurs once.
+
 ## Admin access
 
 - Admin quiz question: `Is it you..?`
